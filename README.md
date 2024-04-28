@@ -38,3 +38,8 @@ We directly use PODA’s pre-trained weights here. Please download the correspon
 sh DKI_training.sh
 ```
 
+## Acknowledgment
+
+We are very grateful to the [PODA](https://github.com/astra-vision/PODA), this project builds on their excellent foundation.
+
+
