@@ -44,6 +44,11 @@ Please pay attention to modifying the data set path and training data set select
 sh ELP_SPC.sh
 ```
 
+  ## Test
+  ```
+sh test.sh
+```
+
 ## Acknowledgment
 
 We are very grateful to the [PODA](https://github.com/astra-vision/PODA), this project builds on their excellent foundation.
