@@ -37,6 +37,12 @@ We directly use PODA’s pre-trained weights here. Please download the correspon
   ```
 sh DKI_training.sh
 ```
+Please pay attention to modifying the data set path and training data set selection.
+
+  ## ELP&SPC
+  ```
+sh ELP_SPC.sh
+```
 
 ## Acknowledgment
 
