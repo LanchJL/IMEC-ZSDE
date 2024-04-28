@@ -177,7 +177,7 @@ class _VAE(nn.Module):
                       trunc3=True, trunc4=True, get1=False, get2=False, get3=False, get4=False, attnpool = True))
         return Feats
 
-    def VAR_train(self, images):
+    def VAR_train(self, images, txt):
         feature = {}
         feature['low_level'] = self.backbone(images,trunc1=False,trunc2=False,
         trunc3=False,trunc4=False,get1=True,get2=False,get3=False,get4=False)
@@ -195,29 +195,9 @@ class _VAE(nn.Module):
 
         loss_l = self.latent_loss(feature['latent_mean'], feature['latent_std'])
         loss_r = self.rec_loss(feature['rec'], feature['cat'].detach())
-        GT = self.Get_Layers_Feature(feature['low_level'])
-        Pred = self.Get_Layers_Feature(feature['AdaIN'])
-        loss_Content = 0
-        for i in range(len(GT)):
-            loss_Content += self.rec_loss(Pred[i], GT[i].detach())
-        return loss_l + self.opts.rec_weights * loss_r + loss_Content
 
-# class Samping(nn.Module):
-#     def __init__(self, VAE, Feat):
-#         super(Samping, self).__init__()
-#         _, _, MeanStd = calc_mean_std(Feat)
-#         with torch.no_grad():
-#             MeanStd = VAE.encoder(MeanStd.squeeze(-1).squeeze(-1))
-#         Mean = MeanStd[:, :256]
-#         Std = MeanStd[:, 256:]
-#         noise = torch.randn_like(Mean)
-#         Sampling = (Mean + noise * Std).clone().detach()
-#         self.Samp = nn.Parameter(Sampling, requires_grad=True)
-#     def forward(self, L_FEAT,text,VAE):
-#         Style = VAE.decoder(self.Samp)
-#         Feat_Trans = VAE.AdaIN(content_feat=L_FEAT, style_feat=Style)
-#         Feat_t1 = VAE.avgpool(Feat_Trans)
-#         Feat_t1 = VAE.backbone(Feat_t1, trunc1=True, trunc2=False,
-#                            trunc3=False, trunc4=False, get1=False, get2=False, get3=False, get4=False)
-#         loss_style = (1 - torch.cosine_similarity(Feat_t1, text, dim=-1)).mean()
-#         return loss_style
+        feature['AdaIN'] = self.avgpool(feature['AdaIN'])
+        feature['CLIP'] = self.backbone(feature['AdaIN'],trunc1=True,trunc2=False,
+        trunc3=False,trunc4=False,get1=True,get2=False,get3=False,get4=False)
+        loss_s = (1-torch.cosine_similarity(feature['CLIP'],txt)).mean()
+        return loss_l + 5 * loss_r + self.opts.lambda_s * loss_s
