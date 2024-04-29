@@ -35,7 +35,7 @@ $ pip install -r requirements.txt
 
 Then activate environment using:
 ```
-conda activate env_name
+$ conda activate env_name
 ```
 
 ## Running IMEC 
