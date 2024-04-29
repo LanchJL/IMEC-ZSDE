@@ -50,7 +50,5 @@ sh test.sh
 ```
 
 ## Acknowledgment
-
-We are very grateful to the [PODA](https://github.com/astra-vision/PODA), this project builds on their excellent foundation.
-
+We are grateful to the [PODA](https://github.com/astra-vision/PODA) for their excellent foundation, which has been instrumental in the development of our project.
 
