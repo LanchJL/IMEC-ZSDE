@@ -42,7 +42,7 @@ $ conda activate env_name
 The IMEC algorithm consists of three steps: source-only training, DKI training, and fine-tuning.	In the actual implementation, we provide detailed information for each step of separation to facilitate debugging.	
 
 ## source-only training
-We directly use PODA’s pre-trained weights here. Please download the corresponding file from [PODA](https://github.com/astra-vision/PODA) and place it in the following location:
+We directly use PODA's pre-trained weights here. Please download the corresponding file from [PODA](https://github.com/astra-vision/PODA) and place it in the following location:
   ```html
   <IMEC_DIR>/                   % IMEC root
   ├── pretrain/                 % Place the weights there
@@ -52,7 +52,13 @@ We directly use PODA’s pre-trained weights here. Please download the correspon
 $ cd run/
 $ sh DKI_training.sh
 ```
-Please pay attention to modifying the data set path and training data set selection.
+Please pay attention to several main settings here: 
+* dataset        %the source dataset for training (cityscapes or gta5)
+* data_root        %root to your dataset
+* DKI_save_dir        %Dir used to store DKI weights
+* target_domain        %The domain IMEC wants to extend
+
+All prompt words are stored in Prompts/, and you can replace them with your own prompt words by modifying the corresponding files.
 
   ## ELP&SPC
   ```
