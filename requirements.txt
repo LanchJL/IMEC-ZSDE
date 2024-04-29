@@ -1,0 +1,12 @@
+clip==1.0
+matplotlib==3.8.2
+numpy==1.26.4
+Pillow==9.4.0
+Pillow==10.3.0
+scikit_learn==1.4.0
+six==1.16.0
+torch==1.12.1
+torch==1.12.1+cu113
+torchvision==0.13.0+cu113
+torchvision==0.13.1
+tqdm==4.66.1
