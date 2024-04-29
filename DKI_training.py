@@ -1,5 +1,4 @@
 ################
-#script to augment features with CLIP
 import pickle
 import os
 import clip
@@ -7,13 +6,10 @@ import torch
 import network
 from network.models import _VAE
 import argparse
-from main import get_dataset
+from utils.utils import get_dataset
 from torch.utils import data
 import numpy as np
 import random
-from torch.utils.tensorboard import SummaryWriter
-import torch.nn.functional as F
-import torch.nn as nn
 from utils.scheduler import PolyLR
 from Prompts.load_prompts import load_prompts
 from utils.utils import templates,compose_text_with_templates,calc_mean_std
@@ -26,8 +22,6 @@ def get_argparser():
                         help="GPU ID")
     parser.add_argument("--data_root", type=str, default='./datasets/data',
                         help="path to dataset")
-    parser.add_argument("--save_dir", type=str,
-                        help= "path for learnt parameters saving")
     parser.add_argument("--dataset", type=str, default='cityscapes',
                         choices=['cityscapes','gta5'], help='Name of dataset')
     parser.add_argument("--crop_size", type=int, default=768)
@@ -53,8 +47,6 @@ def get_argparser():
     parser.add_argument("--random_seed", type=int, default=1,
                         help="random seed (default: 1)")
     # target domain description
-    parser.add_argument("--domain_desc", type=str , default = "driving at night.",
-                        help = "description of the target domain")
     parser.add_argument("--ckpt", default='pretrain/CS_source.pth', type=str,
                         help="restore from checkpoint")
     parser.add_argument("--freeze_BB", action='store_true', default=True,
@@ -63,27 +55,13 @@ def get_argparser():
                         help="mix statistics")
     parser.add_argument("--target_domain",type =str,default='night',
                         help="target domain name")
-    parser.add_argument("--training_epochs", type=int, default=300,
+    parser.add_argument("--training_epochs", type=int, default=50,
                         help="(default: 50)")
-    parser.add_argument("--source_domain", type=str, default='daylight',
-                        help="source domain name")
     #VAE parameters
-    parser.add_argument("--attSize", type=int, default=1024,
-                        help="(default: 1024)")
-    parser.add_argument("--nz", type=int, default=256,
-                        help="(default: 256)")
-    parser.add_argument("--ndh", type=int, default=1024,
-                        help="(default: 4096)")
-    parser.add_argument("--ngh", type=int, default=4096,
-                        help="(default: 4096)")
     parser.add_argument("--resSize_low", type=int, default=256,
                         help="(default: 256)")
-    parser.add_argument("--resSize_high", type=int, default=1024,
-                        help="(default: 1024)")
     parser.add_argument("--lr", type=float, default=1e-4,
                         help="(default: 256)")
-    parser.add_argument('--beta1', type=float, default=0.5, help='beta1 for adam. default=0.5')
-    parser.add_argument('--lambda1', type=float, default=10, help='gradient penalty regularizer, following WGAN-GP')
     parser.add_argument("--train", action='store_true',default=False,
                         help="mix statistics")
     parser.add_argument("--DKI_save_dir",type=str,help="mix statistics")
@@ -136,40 +114,35 @@ def main():
         text_target = clip_model.encode_text(tokens).mean(axis=0, keepdim=True).detach()
         text_target /= text_target.norm(dim=-1, keepdim=True)
         textEmbedding[idx] = text_target
-    if opts.train:
-        textEmb_Mean = textEmbedding.mean(dim=0).repeat(opts.batch_size, 1).type(torch.float32).to(device)
-
-    if opts.train == False:
-        VAE.encoder.load_state_dict(torch.load(opts.Encoder_checkpoints))
-        VAE.decoder.load_state_dict(torch.load(opts.Decoder_checkpoints))
-        VAE.eval()
-        print('--Load VAE MODEL--Encoder--', opts.Encoder_checkpoints)
-        print('--Load VAE MODEL--Decoder--', opts.Decoder_checkpoints)
-
-        '''=================== Other Settings ====================='''
-        if not os.path.isdir(opts.save_dir):
-            os.mkdir(opts.save_dir)
+    textEmb_Mean = textEmbedding.mean(dim=0).repeat(opts.batch_size, 1).type(torch.float32).to(device)
 
     '''=================== Training Model ====================='''
     for epoch in range(opts.training_epochs):
-        loss = {}
-        loss['VAE'] = 0.0
+        loss_sty = 0.0
+        loss_rec = 0.0
+        Loss = 0.0
         num_batches = 0
         pbar = tqdm(enumerate(train_loader), total=len(train_loader))
-        VAE_Loss = 0.0
         for i,(img_id, tar_id, images, labels) in pbar:
-            pbar.set_description(f"Epoch {epoch + 1}/{opts.training_epochs}- lossVAE {VAE_Loss:.2f}")
+            pbar.set_description(f"Epoch {epoch + 1}/{opts.training_epochs}- lossSty {loss_sty:.2f}- lossRec {loss_rec:.2f}")
             if opts.train:
                 '''=================== Training VAE ====================='''
+                if i == len(train_loader) - 1 and images.shape[0] < opts.batch_size:
+                    txt = textEmb_Mean[:images.shape[0]]
+                else:
+                    txt = textEmb_Mean
+
                 optimD.zero_grad()
                 optimE.zero_grad()
-                VAE_Loss = VAE.VAR_train(images.to(device),textEmb_Mean)
-
-                VAE_Loss.backward(retain_graph=True)
+                loss = VAE.DKI_train(images.to(device),txt)
+                Loss = loss['kl']+5*loss['rec']+opts.lambda_s * loss['sty']
+                loss_sty = loss['sty'].item()
+                loss_rec = loss['rec'].item()
+                Loss.backward()
                 optimE.step()
                 optimD.step()
 
-                loss['VAE'] += VAE_Loss.item()
+                Loss += Loss.item()
 
                 num_batches += 1
                 pbar.update(1)
@@ -177,21 +150,19 @@ def main():
                 schedulerD.step()
 
         if opts.train:
-            l1 = loss['VAE'] / num_batches
+            l1 = Loss / num_batches
             print(f"Epoch {epoch + 1} "
-                  f"- Average Loss_VAE: {l1:.4f}")
+                  f"- Average Loss: {l1:.4f}")
 
         '''=================== Saving Data ====================='''
         if opts.train:
-            if (epoch) % 20 == 0:
+            if (epoch) % 10 == 0:
                 if not os.path.isdir(opts.DKI_save_dir):
                     os.mkdir(opts.DKI_save_dir)
-                    print('========== Make Dir {} =========='.format(opts.DKI_save_dir))
-                save_path_e = os.path.join(opts.DKI_save_dir,'Encoder{}.pth'.format(epoch))
-                save_path_d = os.path.join(opts.DKI_save_dir,'Decoder{}.pth'.format(epoch))
-                torch.save(VAE.encoder.state_dict(),save_path_e)
-                torch.save(VAE.decoder.state_dict(),save_path_d)
-
+                    print('-----------Make Dir {} -----------'.format(opts.DKI_save_dir))
+                save_path = os.path.join(opts.DKI_save_dir,'DKI_{}.pth'.format(epoch))
+                torch.save(VAE.state_dict(),save_path)
+                print('-----------Model Saved as', save_path, '-----------')
 '''=================== Run ====================='''
 if __name__ == '__main__':
     main()
