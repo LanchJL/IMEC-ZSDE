@@ -27,7 +27,8 @@ To download and use the data set, please refer to [PODA](https://github.com/astr
   ```
 
 ## Installation
-Initially, it is necessary to create a new environment containing the required packages.	
+Initially, please make sure your environment containing the required packages.	
+If not, you can run:
 ```
 $ cd repository
 $ pip install -r requirements.txt
