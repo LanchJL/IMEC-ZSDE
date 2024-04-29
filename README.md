@@ -66,7 +66,11 @@ All prompt words are stored in Prompts/, and you can replace them with your own 
 $ cd run/
 $ sh ELP_SPC.sh
 ```
-
+Please note the following settings for this step:
+* dataset        %the source dataset for training (cityscapes or gta5)
+* data_root        %root to your dataset
+* DKI_checkpoints        %the path to DKI checkpoints
+* Style_dir        %Dir used to store styles
   ### Test
   ```
 $ cd run/
