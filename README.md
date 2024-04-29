@@ -25,8 +25,22 @@ To download and use the data set, please refer to [PODA](https://github.com/astr
   ├── images/                   % input image 
   └── labels/                   % semantic segmentation labels
   ```
+
+## Installation
+Initially, it is necessary to create a new environment containing the required packages.	
+```
+$ cd repository
+$ pip install -r requirements.txt
+```
+
+Then activate environment using:
+```
+conda activate env_name
+```
+
 ## Running IMEC 
-IMEC can be run in three steps: pure source domain training, DKI training, and fine-tuning.
+The IMEC algorithm consists of three steps: source-only training, DKI training, and fine-tuning.	In the actual implementation, we provide detailed information for each step of separation to facilitate debugging.	
+
 ## source-only training
 We directly use PODA’s pre-trained weights here. Please download the corresponding file from [PODA](https://github.com/astra-vision/PODA) and place it in the following location:
   ```html
