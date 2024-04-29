@@ -71,11 +71,7 @@ Please note the following settings for this step:
 * data_root        %root to your dataset
 * DKI_checkpoints        %the path to DKI checkpoints
 * Style_dir        %Dir used to store styles
-  ### Test
-  ```
-$ cd run/
-$ sh test.sh
-```
+
 
 ## Acknowledgment
 We are grateful to the [PODA](https://github.com/astra-vision/PODA) for their excellent foundation, which has been instrumental in the development of our project.
