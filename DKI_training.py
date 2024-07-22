@@ -18,7 +18,7 @@ from tqdm import tqdm
 def get_argparser():
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("--gpu_id", type=str, default='0',
+    parser.add_argument("--gpu_id", type=int, default=0,
                         help="GPU ID")
     parser.add_argument("--data_root", type=str, default='./datasets/data',
                         help="path to dataset")
@@ -70,14 +70,15 @@ def get_argparser():
                         help="path to dataset")
     parser.add_argument("--Decoder_checkpoints", type=str, default='',
                         help="path to dataset")
+    parser.add_argument("--weights_path", type=str, default = None,
+                        help="path to VAE_weights")
     return parser
 
 
 def main():
     '''=================== Init Setting ====================='''
     opts = get_argparser().parse_args()
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    os.environ['CUDA_VISIBLE_DEVICES'] = opts.gpu_id
+    device = torch.device('cuda:{}'.format(opts.gpu_id) if torch.cuda.is_available() else 'cpu')
     torch.manual_seed(opts.random_seed)
     torch.cuda.manual_seed(opts.random_seed)
     np.random.seed(opts.random_seed)
@@ -104,8 +105,12 @@ def main():
     schedulerE = PolyLR(optimE, (opts.training_epochs + 1) * len(train_loader), power=0.9)
     schedulerD = PolyLR(optimD, (opts.training_epochs + 1) * len(train_loader), power=0.9)
 
+    if opts.weights_path and opts.train:
+        VAE.load_state_dict(torch.load(opts.weights_path))
+        print('load weights from', opts.weights_path)
     '''=================== Load Text Description ====================='''
     decs_path = os.path.join('../Prompts', opts.target_domain + '.txt')
+    print('using prompts from', decs_path)
     Decs = load_prompts(decs_path)
     textEmbedding = torch.zeros((len(Decs), 1024))
     for idx, name in enumerate(Decs):
@@ -135,15 +140,13 @@ def main():
                 optimD.zero_grad()
                 optimE.zero_grad()
                 loss = VAE.DKI_train(images.to(device),txt)
-                Loss = loss['kl']+5*loss['rec']+opts.lambda_s * loss['sty']
+                Loss = loss['kl'] + 10 * loss['rec'] + opts.lambda_s * loss['sty']
                 loss_sty = loss['sty'].item()
                 loss_rec = loss['rec'].item()
                 Loss.backward()
                 optimE.step()
                 optimD.step()
-
                 Loss += Loss.item()
-
                 num_batches += 1
                 pbar.update(1)
                 schedulerE.step()
@@ -156,7 +159,7 @@ def main():
 
         '''=================== Saving Data ====================='''
         if opts.train:
-            if (epoch) % 10 == 0:
+            if (epoch + 1) % 10 == 0:
                 if not os.path.isdir(opts.DKI_save_dir):
                     os.mkdir(opts.DKI_save_dir)
                     print('-----------Make Dir {} -----------'.format(opts.DKI_save_dir))
